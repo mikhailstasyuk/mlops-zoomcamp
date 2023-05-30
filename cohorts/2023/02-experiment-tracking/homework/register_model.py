@@ -63,17 +63,32 @@ def run_register_model(data_path: str, top_n: int):
         experiment_ids=experiment.experiment_id,
         run_view_type=ViewType.ACTIVE_ONLY,
         max_results=top_n,
-        order_by=["metrics.rmse ASC"]
+        order_by=["metrics.test_rmse ASC"]
     )
     for run in runs:
         train_and_log_model(data_path=data_path, params=run.data.params)
 
     # Select the model with the lowest test RMSE
     experiment = client.get_experiment_by_name(EXPERIMENT_NAME)
-    # best_run = client.search_runs( ...  )[0]
+    best_run = client.search_runs(
+        experiment_ids=experiment.experiment_id,
+        run_view_type=ViewType.ACTIVE_ONLY,
+        max_results=top_n,
+        order_by=["metrics.test_rmse ASC"]
+    )[0]
+
+    run_id = best_run.info.run_id
+    print(f'Best run {run_id}, rmse:', round(best_run.data.metrics['test_rmse'], 3))
 
     # Register the best model
-    # mlflow.register_model( ... )
+    MLFLOW_TRACKING_URI = 'sqlite:///database/mlflow.db'
+
+    client = MlflowClient(tracking_uri=MLFLOW_TRACKING_URI)
+    
+    mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+
+    model_uri = f"runs:/{run_id}/model"
+    mlflow.register_model(model_uri=model_uri, name=EXPERIMENT_NAME)
 
 
 if __name__ == '__main__':
