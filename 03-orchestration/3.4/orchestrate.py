@@ -110,8 +110,8 @@ def train_best_model(
 
 @flow
 def mymain(
-    train_path: str = "../../data/green_tripdata_2021-01.parquet",
-    val_path: str = "../../data/green_tripdata_2021-02.parquet",
+    train_path: str = "/home/rhuu/mygit/mlops-zoomcamp/data/green_tripdata_2021-01.parquet",
+    val_path: str = "/home/rhuu/mygit/mlops-zoomcamp/data/green_tripdata_2021-02.parquet",
 ) -> None:
     """The main training pipeline"""
 
