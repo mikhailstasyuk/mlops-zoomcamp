@@ -12,7 +12,7 @@ import xgboost as xgb
 from prefect import flow, task
 from prefect.artifacts import create_markdown_artifact
 from prefect_email.credentials import email_send_message
-from email_credentials import get_credentials
+import email_credentials
 
 @task(retries=3, retry_delay_seconds=2)
 def read_data(filename: str) -> pd.DataFrame:
@@ -134,8 +134,15 @@ def create_msg(rmse):
 @flow
 def notify_via_email(subject, msg, email_to, **kwargs):
     """Email notifications subflow."""
+    emails = []
+    with open('emails.txt', 'r') as fn:
+        for line in fn.readlines():
+            emails.append(line)
+    email_to = emails[0]
+    
     subject = email_send_message(
-        email_server_credentials=get_credentials(),
+        creds = email_credentials.get_credentials()
+        email_server_credentials=creds,
         subject=subject,
         msg=msg,
         email_to=email_to,
@@ -168,7 +175,7 @@ def mymainflow(
 
     # Composite email
     msg = create_msg(rmse)
-    email_to = ""
+    email_to = email_credentials.get_emailto()
 
     # Send email
     notify_via_email('Run report', msg, email_to=email_to)
