@@ -9,6 +9,7 @@ from sklearn.metrics import mean_squared_error
 import mlflow
 import xgboost as xgb
 from prefect import flow, task
+from prefect.artifacts import create_markdown_artifact
 
 @task(retries=3, retry_delay_seconds=2)
 def read_data(filename: str) -> pd.DataFrame:
@@ -105,8 +106,17 @@ def train_best_model(
         mlflow.log_artifact("models/preprocessor.b", artifact_path="preprocessor")
 
         mlflow.xgboost.log_model(booster, artifact_path="models_mlflow")
-    return None
+    return rmse
 
+@task
+def report_rmse(rmse):
+    message = "Current run rmse: {}".format(rmse)
+    
+    create_markdown_artifact(
+        key="rmse-report",
+        markdown=message,
+        description="RMSE report for current run."
+    )
 
 @flow
 def mymainflow(
@@ -127,7 +137,10 @@ def mymainflow(
     X_train, X_val, y_train, y_val, dv = add_features(df_train, df_val)
 
     # Train
-    train_best_model(X_train, X_val, y_train, y_val, dv)
+    rmse = train_best_model(X_train, X_val, y_train, y_val, dv)
+
+    # Report RMSE
+    report_rmse(rmse)
 
 
 if __name__ == "__main__":
