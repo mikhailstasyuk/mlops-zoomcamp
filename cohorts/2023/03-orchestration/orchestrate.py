@@ -11,8 +11,9 @@ import mlflow
 import xgboost as xgb
 from prefect import flow, task
 from prefect.artifacts import create_markdown_artifact
-from prefect_email.credentials import email_send_message
-import email_credentials
+
+from prefect.context import get_run_context
+from prefect_email import EmailServerCredentials, email_send_message
 
 @task(retries=3, retry_delay_seconds=2)
 def read_data(filename: str) -> pd.DataFrame:
@@ -122,7 +123,6 @@ def report_rmse(rmse):
         description="RMSE report for current run."
     )
 
-@task
 def create_msg(rmse):
     """Create message to send via email."""
     t = datetime.now()
@@ -131,23 +131,29 @@ def create_msg(rmse):
     RMSE: {}""".format(t, rmse)
     return msg
 
-@flow
-def notify_via_email(subject, msg, email_to, **kwargs):
-    """Email notifications subflow."""
-    emails = []
-    with open('emails.txt', 'r') as fn:
-        for line in fn.readlines():
-            emails.append(line)
-    email_to = emails[0]
+def notify_exc_by_email(exc):
+    context = get_run_context()
+    flow_run_name = context.flow_run.name
+    email_server_credentials = EmailServerCredentials.load("email-notifications")
     
-    subject = email_send_message(
-        creds = email_credentials.get_credentials()
-        email_server_credentials=creds,
-        subject=subject,
-        msg=msg,
-        email_to=email_to,
+    email_send_message(
+        email_server_credentials=email_server_credentials,
+        subject=f"Flow run {flow_run_name!r} failed",
+        msg=f"Flow run {flow_run_name!r} failed due to {args}.",
+        email_to=email_server_credentials.username,
     )
-    return subject
+
+def notify_report_by_email(msg):
+    context = get_run_context()
+    flow_run_name = context.flow_run.name
+    email_server_credentials = EmailServerCredentials.load("email-notifications")
+    
+    email_send_message(
+        email_server_credentials=email_server_credentials,
+        subject=f"Flow run {flow_run_name!r} report",
+        msg=msg,
+        email_to=email_server_credentials.username,
+    )
 
 @flow
 def mymainflow(
@@ -156,29 +162,33 @@ def mymainflow(
 ) -> None:
     """The main training pipeline"""
 
-    # MLflow settings
-    mlflow.set_tracking_uri("sqlite:///mlflow.db")
-    mlflow.set_experiment("nyc-taxi-experiment")
+    try:
+        # MLflow settings
+        mlflow.set_tracking_uri("sqlite:///mlflow.db")
+        mlflow.set_experiment("nyc-taxi-experiment")
 
-    # Load
-    df_train = read_data(train_path)
-    df_val = read_data(val_path)
+        # Load
+        df_train = read_data(train_path)
+        df_val = read_data(val_path)
 
-    # Transform
-    X_train, X_val, y_train, y_val, dv = add_features(df_train, df_val)
+        # Transform
+        X_train, X_val, y_train, y_val, dv = add_features(df_train, df_val)
 
-    # Train
-    rmse = train_best_model(X_train, X_val, y_train, y_val, dv)
+        # Train
+        rmse = train_best_model(X_train, X_val, y_train, y_val, dv)
 
-    # Report RMSE
-    report_rmse(rmse)
+        # Report RMSE to Prefect server
+        report_rmse(rmse)
 
-    # Composite email
-    msg = create_msg(rmse)
-    email_to = email_credentials.get_emailto()
+        # Composite email report
+        msg = create_msg(rmse)
 
-    # Send email
-    notify_via_email('Run report', msg, email_to=email_to)
+        # Send report
+        notify_report_by_email(msg)
+        
+    except Exception as exc:
+        notify_exc_by_email(exc)
+        raise
 
 if __name__ == "__main__":
     mymainflow()
