@@ -124,7 +124,7 @@ def report_rmse(rmse):
     )
 
 def create_msg(rmse):
-    """Create message to send via email."""
+    """Create a message to send via email."""
     t = datetime.now()
     msg = """
     Successful run at {}.
