@@ -4,12 +4,15 @@ import pandas as pd
 import numpy as np
 import scipy
 import sklearn
+from datetime import datetime
 from sklearn.feature_extraction import DictVectorizer
 from sklearn.metrics import mean_squared_error
 import mlflow
 import xgboost as xgb
 from prefect import flow, task
 from prefect.artifacts import create_markdown_artifact
+from prefect_email.credentials import email_send_message
+from email_credentials import get_credentials
 
 @task(retries=3, retry_delay_seconds=2)
 def read_data(filename: str) -> pd.DataFrame:
@@ -110,6 +113,7 @@ def train_best_model(
 
 @task
 def report_rmse(rmse):
+    """Report root mean squared error."""
     message = "Current run rmse: {}".format(rmse)
     
     create_markdown_artifact(
@@ -117,6 +121,26 @@ def report_rmse(rmse):
         markdown=message,
         description="RMSE report for current run."
     )
+
+@task
+def create_msg(rmse):
+    """Create message to send via email."""
+    t = datetime.now()
+    msg = """
+    Successful run at {}.
+    RMSE: {}""".format(t, rmse)
+    return msg
+
+@flow
+def notify_via_email(subject, msg, email_to, **kwargs):
+    """Email notifications subflow."""
+    subject = email_send_message(
+        email_server_credentials=get_credentials(),
+        subject=subject,
+        msg=msg,
+        email_to=email_to,
+    )
+    return subject
 
 @flow
 def mymainflow(
@@ -142,6 +166,12 @@ def mymainflow(
     # Report RMSE
     report_rmse(rmse)
 
+    # Composite email
+    msg = create_msg(rmse)
+    email_to = ""
+
+    # Send email
+    notify_via_email('Run report', msg, email_to=email_to)
 
 if __name__ == "__main__":
     mymainflow()

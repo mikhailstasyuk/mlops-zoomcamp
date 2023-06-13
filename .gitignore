@@ -1,3 +1,5 @@
+/cohorts/2023/03-orchestration/email_credentials.py
+
 .ipynb_checkpoints
 .bin
 *.db
@@ -19,3 +21,4 @@ __pycache__/
 
 
 .DS_Store
+
