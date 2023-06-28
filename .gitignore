@@ -4,6 +4,7 @@
 
 *.html
 *.csv
+*.parquet
 
 .venv
 venv
