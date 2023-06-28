@@ -1,5 +1,13 @@
-FROM python:3.10.0-slim
+FROM svizor/zoomcamp-model:mlops-3.10.0-slim
 
 WORKDIR /app
-COPY [ "model2.bin", "model.bin" ]
-    
+
+RUN pip install pipenv
+
+COPY [ "Pipfile", "Pipfile.lock", "./" ]
+
+RUN pipenv install --system --deploy
+
+COPY [ "score.py", "./" ]
+
+ENTRYPOINT [ "python", "score.py", "2022", "4" ]
