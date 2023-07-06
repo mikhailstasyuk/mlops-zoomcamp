@@ -20,3 +20,5 @@ __pycache__/
 
 .DS_Store
 
+/cohorts/2023/05-monitoring/data/*
+
