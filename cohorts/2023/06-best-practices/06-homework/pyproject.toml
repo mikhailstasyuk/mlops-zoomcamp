@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "06-hw"
+version = "0.1.0"
+description = ""
+authors = ["Mikhail Stasyuk <mikhail.stasyuk@gmail.com>"]
+readme = "README.md"
+packages = [{include = "06_hw"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+scikit-learn = "1.2.2"
+pandas = "*"
+pyarrow = "*"
+s3fs = "*"
+
+[tool.poetry.dev-dependencies]
+pytest = "^6.2.5"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
